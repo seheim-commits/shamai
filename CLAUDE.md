@@ -1,4 +1,22 @@
-# Auto-Setup Instructions
+# שמאי מכריע — Project Instructions
+
+## For Developers (returning sessions)
+
+**Key files:** `server.py` (routes), `api/moj.py` (MoJ client), `db.py` (schema), `static/app.js` (frontend)
+**Run:** `python3 -m uvicorn server:app --host 0.0.0.0 --port 8000`
+**Docs:** See `INDEX.md` for full navigation, `STATE.md` for current status, `tasks/lessons.md` for MoJ API rules
+**Branch:** `main` only (no staging)
+
+### Critical MoJ API Rules
+- `SearchText` is the correct field name for full-text search (`FreeText` returns 500)
+- Date filters are broken server-side — always filter client-side in Python
+- `CommiteesList` / `DecisiveAppraisersList` return 500 — use hardcoded fallback lists in `api/moj.py`
+- `AppraisalVersions` returns objects `{Value, Key}` not strings — extract `.Value`
+- Results are sorted by `PublicityDate` descending — use early exit for pub date lower bound
+
+---
+
+## Auto-Setup Instructions (for new users via Claude Code)
 
 You are setting up the "שמאי מכריע" app for the user. Follow every step below autonomously. Fix any error before moving on. Do not ask the user anything — figure it out.
 
