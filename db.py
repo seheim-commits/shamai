@@ -52,6 +52,5 @@ def init_db():
             content_rowid=id
         );
     """)
-    conn.commit()
-    if DB_PATH != ":memory:" and conn is not _memory_conn:
+    if DB_PATH != ":memory:":
         conn.close()
