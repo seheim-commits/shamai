@@ -270,12 +270,6 @@ async function loadLibrary(query = '', committee = '', appraiser = '') {
       ? '<span class="ocr-status-pending">⟳ ממתין</span>'
       : '<span class="ocr-status-none">—</span>';
 
-    const actions = ocrStatus === 'done'
-      ? `<a class="action-link" onclick="openFile('${esc(row.local_path)}')">פתח</a>
-         <a class="action-link purple" onclick="openClaudePanel('${esc(row.local_path)}','${esc(row.filename)}')">Claude ✦</a>`
-      : `<a class="action-link" onclick="openFile('${esc(row.local_path)}')">פתח</a>
-         <a class="action-link" style="color:var(--dim)" onclick="runOcr('${esc(row.local_path)}', this)">הפעל OCR</a>`;
-
     const date = (row.decision_date || '').slice(0, 10);
     const tr = document.createElement('tr');
     tr.innerHTML = `
@@ -284,8 +278,32 @@ async function loadLibrary(query = '', committee = '', appraiser = '') {
       <td style="color:var(--muted)">${esc(row.appraiser || '')}</td>
       <td style="color:var(--muted)">${date}</td>
       <td>${ocrHtml}</td>
-      <td>${actions}</td>
+      <td class="actions-cell"></td>
     `;
+
+    const actionsCell = tr.querySelector('.actions-cell');
+
+    const openLink = document.createElement('a');
+    openLink.className = 'action-link';
+    openLink.textContent = 'פתח';
+    openLink.addEventListener('click', () => openFile(row.local_path));
+    actionsCell.appendChild(openLink);
+
+    if (ocrStatus === 'done') {
+      const claudeLink = document.createElement('a');
+      claudeLink.className = 'action-link purple';
+      claudeLink.textContent = 'Claude ✦';
+      claudeLink.addEventListener('click', () => openClaudePanel(row.local_path, row.filename));
+      actionsCell.appendChild(claudeLink);
+    } else {
+      const ocrLink = document.createElement('a');
+      ocrLink.className = 'action-link';
+      ocrLink.style.color = 'var(--dim)';
+      ocrLink.textContent = 'הפעל OCR';
+      ocrLink.addEventListener('click', () => runOcr(row.local_path, ocrLink));
+      actionsCell.appendChild(ocrLink);
+    }
+
     tbody.appendChild(tr);
   });
 }

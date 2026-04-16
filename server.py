@@ -142,11 +142,13 @@ async def api_bulk(
                 try:
                     download_pdf(url, dest)
                     conn = get_db()
-                    row_id = index_decision(conn, data, str(dest))
-                    if auto_ocr and row_id:
-                        text = ocr_pdf(dest)
-                        store_ocr(conn, row_id, text)
-                    conn.close()
+                    try:
+                        row_id = index_decision(conn, data, str(dest))
+                        if auto_ocr and row_id:
+                            text = ocr_pdf(dest)
+                            store_ocr(conn, row_id, text)
+                    finally:
+                        conn.close()
                     downloaded += 1
                     yield f"data: {json.dumps({'status': 'ok', 'name': name, 'downloaded': downloaded, 'errors': errors})}\n\n"
                 except Exception as e:
@@ -244,8 +246,11 @@ def api_library(
 @app.post("/api/open")
 def api_open(body: dict):
     path = body.get("path", "")
-    if path and Path(path).exists():
-        subprocess.Popen(["open", path])  # macOS; use "xdg-open" on Linux
+    if path:
+        resolved = Path(path).resolve()
+        pdfs_dir = Path(os.getenv("PDFS_DIR", "pdfs")).resolve()
+        if resolved.is_relative_to(pdfs_dir) and resolved.exists():
+            subprocess.Popen(["open", str(resolved)])
     return {"status": "ok"}
 
 
