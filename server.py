@@ -38,15 +38,70 @@ def api_search(
     Plot: Optional[str] = None,
     DateFrom: Optional[str] = None,
     DateTo: Optional[str] = None,
+    PubDateFrom: Optional[str] = None,
+    PubDateTo: Optional[str] = None,
     FreeText: Optional[str] = None,
 ):
-    filters = {k: v for k, v in {
+    moj_filters = {k: v for k, v in {
         "Committee": Committee, "DecisiveAppraiser": DecisiveAppraiser,
         "AppraisalType": AppraisalType, "AppraisalVersion": AppraisalVersion,
-        "Block": Block, "Plot": Plot, "DateFrom": DateFrom,
-        "DateTo": DateTo, "FreeText": FreeText,
+        "Block": Block, "Plot": Plot,
     }.items() if v}
-    return search_decisions(skip=skip, **filters)
+
+    # SearchText is the correct MoJ field name (FreeText returns 500)
+    if FreeText:
+        moj_filters["SearchText"] = FreeText
+
+    needs_client_filter = any([DateFrom, DateTo, PubDateFrom, PubDateTo])
+
+    if not needs_client_filter:
+        return search_decisions(skip=skip, **moj_filters)
+
+    date_from = DateFrom[:10] if DateFrom else None
+    date_to = DateTo[:10] if DateTo else None
+    pub_from = PubDateFrom[:10] if PubDateFrom else None
+    pub_to = PubDateTo[:10] if PubDateTo else None
+
+    # Short-circuit if date range is impossible
+    if date_from and date_to and date_from > date_to:
+        return {"Results": [], "TotalResults": 0, "Status": "OK"}
+    if pub_from and pub_to and pub_from > pub_to:
+        return {"Results": [], "TotalResults": 0, "Status": "OK"}
+
+    PAGE = 10
+    MAX_SCAN = 2000  # safety cap
+    collected = []
+    moj_skip = 0
+    exhausted = False
+
+    while len(collected) < skip + PAGE and not exhausted and moj_skip < MAX_SCAN:
+        batch = search_decisions(skip=moj_skip, **moj_filters)
+        results = batch.get("Results", [])
+        if not results:
+            exhausted = True
+            break
+
+        for item in results:
+            dec = item["Data"].get("DecisionDate", "")[:10]
+            pub = item["Data"].get("PublicityDate", "")[:10]
+            if date_from and dec < date_from:
+                continue
+            if date_to and dec > date_to:
+                continue
+            if pub_from and pub < pub_from:
+                # MoJ sorts by PublicityDate desc — nothing older will match
+                exhausted = True
+                break
+            if pub_to and pub > pub_to:
+                continue
+            collected.append(item)
+
+        moj_skip += len(results)
+        if len(results) < PAGE:
+            exhausted = True
+
+    page_items = collected[skip: skip + PAGE]
+    return {"Results": page_items, "TotalResults": len(collected), "Status": "OK"}
 
 
 @app.get("/api/filters")
@@ -95,21 +150,29 @@ async def api_bulk(
     AppraisalVersion: Optional[str] = None,
     DateFrom: Optional[str] = None,
     DateTo: Optional[str] = None,
+    PubDateFrom: Optional[str] = None,
+    PubDateTo: Optional[str] = None,
+    FreeText: Optional[str] = None,
     max_results: int = 100,
     auto_ocr: bool = False,
     skip_existing: bool = True,
 ):
-    filters = {k: v for k, v in {
+    moj_filters = {k: v for k, v in {
         "Committee": Committee, "DecisiveAppraiser": DecisiveAppraiser,
         "AppraisalType": AppraisalType, "AppraisalVersion": AppraisalVersion,
-        "DateFrom": DateFrom, "DateTo": DateTo,
     }.items() if v}
+    if FreeText:
+        moj_filters["SearchText"] = FreeText
+    date_from = DateFrom[:10] if DateFrom else None
+    date_to = DateTo[:10] if DateTo else None
+    pub_from = PubDateFrom[:10] if PubDateFrom else None
+    pub_to = PubDateTo[:10] if PubDateTo else None
 
     async def generate():
         downloaded = errors = skip = 0
 
         while downloaded < max_results:
-            batch = search_decisions(skip=skip, **filters)
+            batch = search_decisions(skip=skip, **moj_filters)
             results = batch.get("Results", [])
             if not results:
                 break
@@ -118,6 +181,19 @@ async def api_bulk(
                 if downloaded >= max_results:
                     break
                 data = item["Data"]
+
+                # Client-side date filtering (MoJ date API is broken)
+                dec = data.get("DecisionDate", "")[:10]
+                pub = data.get("PublicityDate", "")[:10]
+                if date_from and dec < date_from:
+                    continue
+                if date_to and dec > date_to:
+                    continue
+                if pub_from and pub < pub_from:
+                    continue
+                if pub_to and pub > pub_to:
+                    continue
+
                 docs = data.get("Document", [])
                 if not docs:
                     continue

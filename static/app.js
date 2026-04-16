@@ -56,17 +56,24 @@ async function doSearch(skip) {
   add('Plot', 's-plot');
   add('DateFrom', 's-from');
   add('DateTo', 's-to');
+  add('PubDateFrom', 's-pub-from');
+  add('PubDateTo', 's-pub-to');
   add('FreeText', 's-text');
 
-  const data = await apiFetch('/api/search?' + params.toString());
-  currentTotal = data.TotalResults || 0;
-  currentResults = data.Results || [];
+  try {
+    const data = await apiFetch('/api/search?' + params.toString());
+    currentTotal = data.TotalResults || 0;
+    currentResults = data.Results || [];
 
-  document.getElementById('s-count').textContent =
-    currentTotal.toLocaleString('he-IL') + ' תוצאות';
+    document.getElementById('s-count').textContent =
+      currentTotal.toLocaleString('he-IL') + ' תוצאות';
 
-  renderSearchResults(currentResults);
-  renderPagination(skip, currentTotal);
+    renderSearchResults(currentResults);
+    renderPagination(skip, currentTotal);
+  } catch (e) {
+    document.getElementById('s-count').textContent = 'שגיאה בחיפוש';
+    console.error('Search failed:', e);
+  }
 }
 
 function renderSearchResults(results) {
@@ -189,8 +196,11 @@ function startBulk() {
   add('Committee', 'b-committee');
   add('DecisiveAppraiser', 'b-appraiser');
   add('AppraisalVersion', 'b-version');
+  add('FreeText', 'b-text');
   add('DateFrom', 'b-from');
   add('DateTo', 'b-to');
+  add('PubDateFrom', 'b-pub-from');
+  add('PubDateTo', 'b-pub-to');
 
   document.getElementById('btn-bulk-start').classList.add('hidden');
   document.getElementById('btn-bulk-stop').classList.remove('hidden');

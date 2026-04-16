@@ -27,25 +27,44 @@ def search_decisions(skip: int = 0, **filters) -> dict:
         return r.json()
 
 
+_COMMITTEES_FALLBACK = ['אור יהודה', 'אזור', 'אילת', 'אלעד', 'אשקלון', 'באר טוביה', 'בית שמש', 'בני ברק', 'בת ים', 'גבעות אלונים', 'גבעת שמואל', 'גבעתיים', 'גדרה', 'גן יבנה', 'דרום השרון', 'הגליל המזרחי', 'הגליל המרכזי', 'הגליל תחתון', 'הדרים הוד השרון', 'הראל', 'הרצליה', 'ועדה מחוזית חיפה', 'זמורה', 'חבל אשר', 'חדרה', 'חולון', 'חוף השרון', 'חיפה', 'טבריה', 'יבנה', 'יהוד-נווה אפריים', 'יישובי הברון', 'ירושלים', 'כפר סבא', 'כפר שמריהו', 'לב הגליל', 'לב השרון', 'לוד', 'מבוא העמקים', 'מודיעין - מכבים - רעות', 'מורדות הכרמל', 'מטה יהודה', 'מעלה נפתלי', 'מעלות תרשיחא', 'מצפה אפק', 'משגב', 'נהריה', 'נתיבות', 'נתניה', 'עמק חפר', 'פרדס חנה כרכור', 'פתח תקוה', 'צפת', 'קצרין', 'קרית אתא', 'קרית גת', 'ראשון לציון', 'רחובות', 'רמלה', 'רמת גן', 'רמת השרון', 'רעננה', 'שוהם', 'שרונים', 'תל אביב-יפו']
+
+_APPRAISERS_FALLBACK = ['אשור מישל', 'בן פורת לילך', 'ברזילי בועז', 'בריל דוד', 'גולדברג ארנון', 'גלן אורית', 'דדון דוד', 'דדון מרדכי', 'דודזון שמאמה אוולין', 'הוכטייל נתלי', 'הלוי יעקב', 'הרון יעל', 'הרצברג גיל', 'וייס רביב רינת', 'חיים מסילתי', 'חימי אלדד', 'יוסף יגאל', 'יפה שלומי', 'ירקוני ערן', 'כהן אלי', 'כהן אליהו', 'כהן ארז', 'מאור רמה', 'סרחאן עומר', "פז יעקב –ג'קי", 'פלד יהודה', 'צדיק גיא', 'קוט בועז', 'רבינסון חגית', 'שוורצברד ברק', 'שחור דנה']
+
+
 def get_committees() -> list:
-    with httpx.Client(timeout=30) as client:
-        r = client.get(f"{BASE_URL}/CommiteesList", headers=HEADERS)
-        r.raise_for_status()
-        return r.json()
+    try:
+        with httpx.Client(timeout=30) as client:
+            r = client.get(f"{BASE_URL}/CommiteesList", headers=HEADERS)
+            r.raise_for_status()
+            return r.json()
+    except Exception:
+        return _COMMITTEES_FALLBACK
 
 
 def get_appraisers() -> list:
-    with httpx.Client(timeout=30) as client:
-        r = client.get(f"{BASE_URL}/DecisiveAppraisersList", headers=HEADERS)
-        r.raise_for_status()
-        return r.json()
+    try:
+        with httpx.Client(timeout=30) as client:
+            r = client.get(f"{BASE_URL}/DecisiveAppraisersList", headers=HEADERS)
+            r.raise_for_status()
+            return r.json()
+    except Exception:
+        return _APPRAISERS_FALLBACK
+
+
+_VERSIONS_FALLBACK = ['שומה מקורית', 'שומה מתוקנת אחרי ערר']
 
 
 def get_versions() -> list:
-    with httpx.Client(timeout=30) as client:
-        r = client.get(f"{BASE_URL}/AppraisalVersions", headers=HEADERS)
-        r.raise_for_status()
-        return r.json()
+    try:
+        with httpx.Client(timeout=30) as client:
+            r = client.get(f"{BASE_URL}/AppraisalVersions", headers=HEADERS)
+            r.raise_for_status()
+            items = r.json()
+            # API returns objects; extract string values, skip numeric placeholders
+            return [v["Value"] for v in items if isinstance(v, dict) and not v["Value"].isdigit()]
+    except Exception:
+        return _VERSIONS_FALLBACK
 
 
 def pdf_url(token: str) -> str:
