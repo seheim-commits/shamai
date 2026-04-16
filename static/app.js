@@ -86,11 +86,24 @@ function renderSearchResults(results) {
       <td style="color:var(--muted)">${esc(d.Committee || '')}</td>
       <td style="color:var(--muted)">${date}</td>
       <td><span class="badge ${badgeClass}">${badgeText}</span></td>
-      <td>
-        <a class="action-link" onclick='downloadOne(${JSON.stringify(d)})'>↓ PDF</a>
-        <a class="action-link purple" onclick='analyzeFromSearch(${JSON.stringify(d)})'>Claude ✦</a>
-      </td>
+      <td class="actions-cell"></td>
     `;
+
+    const actionsCell = tr.querySelector('.actions-cell');
+
+    const dlLink = document.createElement('a');
+    dlLink.className = 'action-link';
+    dlLink.textContent = '↓ PDF';
+    dlLink.addEventListener('click', () => downloadOne(d));
+
+    const claudeLink = document.createElement('a');
+    claudeLink.className = 'action-link purple';
+    claudeLink.textContent = 'Claude ✦';
+    claudeLink.addEventListener('click', () => analyzeFromSearch(d));
+
+    actionsCell.appendChild(dlLink);
+    actionsCell.appendChild(claudeLink);
+
     tbody.appendChild(tr);
   });
 }
@@ -129,23 +142,37 @@ async function downloadOne(data) {
 }
 
 async function downloadPage() {
+  let downloaded = 0, existed = 0, errors = 0;
   for (const item of currentResults) {
-    await downloadOne(item.Data);
+    try {
+      const res = await apiFetch('/api/download', { method: 'POST', body: JSON.stringify({ data: item.Data }) });
+      if (res.status === 'exists') existed++;
+      else downloaded++;
+    } catch {
+      errors++;
+    }
   }
+  const parts = [];
+  if (downloaded) parts.push(`הורדו ${downloaded}`);
+  if (existed) parts.push(`${existed} קיימים`);
+  if (errors) parts.push(`${errors} שגיאות`);
+  alert(parts.join(' • ') || 'לא היו קבצים להורדה');
 }
 
 async function analyzeFromSearch(data) {
-  // Download first if needed, then switch to library and open Claude panel
   try {
     const res = await apiFetch('/api/download', { method: 'POST', body: JSON.stringify({ data }) });
-    activePdfPath = res.path;
     // Switch to library tab
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
     document.querySelector('[data-tab="library"]').classList.add('active');
     document.getElementById('panel-library').classList.add('active');
     await loadLibrary();
-    openClaudePanel(res.path, data.AppraisalHeader || res.path);
+    // Only open Claude panel if file already had OCR done (status === 'exists')
+    // For newly downloaded files, user sees library and needs to run OCR first
+    if (res.status === 'exists') {
+      openClaudePanel(res.path, data.AppraisalHeader || res.path);
+    }
   } catch (e) {
     alert('שגיאה: ' + e.message);
   }
