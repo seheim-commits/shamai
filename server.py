@@ -220,7 +220,7 @@ def api_library(
         rows = conn.execute(
             """SELECT d.* FROM decisions d
                JOIN decision_text dt ON dt.rowid = d.id
-               WHERE decision_text MATCH ?
+               WHERE dt MATCH ?
                ORDER BY d.downloaded_at DESC""",
             (q,),
         ).fetchall()
