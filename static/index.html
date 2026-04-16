@@ -1,1 +1,163 @@
-<html><body>loading...</body></html>
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>שמאי מכריע</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<header class="app-header">
+  <span class="app-title">הכרעות שמאי מכריע</span>
+  <nav class="tabs">
+    <div class="tab active" data-tab="search">חיפוש</div>
+    <div class="tab" data-tab="bulk">הורדה מרוכזת</div>
+    <div class="tab" data-tab="library">הספרייה שלי</div>
+  </nav>
+</header>
+
+<!-- ===== SEARCH TAB ===== -->
+<div class="panel active" id="panel-search">
+  <div class="filter-bar">
+    <div class="field">
+      <label>ועדה</label>
+      <select id="s-committee"><option value="">הכל</option></select>
+    </div>
+    <div class="field">
+      <label>שמאי מכריע</label>
+      <select id="s-appraiser"><option value="">הכל</option></select>
+    </div>
+    <div class="field">
+      <label>גרסת שומה</label>
+      <select id="s-version"><option value="">הכל</option></select>
+    </div>
+    <div class="field">
+      <label>גוש</label>
+      <input id="s-block" type="text" placeholder="6106" style="width:70px">
+    </div>
+    <div class="field">
+      <label>חלקה</label>
+      <input id="s-plot" type="text" placeholder="316" style="width:60px">
+    </div>
+    <div class="field">
+      <label>מתאריך</label>
+      <input id="s-from" type="date">
+    </div>
+    <div class="field">
+      <label>עד תאריך</label>
+      <input id="s-to" type="date">
+    </div>
+    <div class="field">
+      <label>טקסט חופשי</label>
+      <input id="s-text" type="text" placeholder="חיפוש..." style="min-width:140px">
+    </div>
+    <button class="btn btn-primary" style="align-self:flex-end" onclick="doSearch(0)">חפש</button>
+  </div>
+
+  <div class="results-meta">
+    <span id="s-count" style="color:var(--dim)">—</span>
+    <button class="btn btn-secondary" onclick="downloadPage()" id="btn-dl-page">הורד עמוד זה</button>
+  </div>
+
+  <table class="results-table">
+    <thead>
+      <tr>
+        <th>כותרת</th>
+        <th>שמאי</th>
+        <th>ועדה</th>
+        <th>תאריך</th>
+        <th>גרסה</th>
+        <th>פעולות</th>
+      </tr>
+    </thead>
+    <tbody id="s-results"></tbody>
+  </table>
+
+  <div class="pagination" id="s-pagination"></div>
+</div>
+
+<!-- ===== BULK TAB ===== -->
+<div class="panel" id="panel-bulk">
+  <div class="bulk-layout">
+    <div class="bulk-config">
+      <h3>הגדרות הורדה</h3>
+      <div class="field"><label>ועדה</label><select id="b-committee"><option value="">הכל</option></select></div>
+      <div class="field"><label>שמאי מכריע</label><select id="b-appraiser"><option value="">הכל</option></select></div>
+      <div class="field"><label>גרסת שומה</label><select id="b-version"><option value="">הכל</option></select></div>
+      <div class="field"><label>מתאריך</label><input id="b-from" type="date"></div>
+      <div class="field"><label>עד תאריך</label><input id="b-to" type="date"></div>
+      <div class="field">
+        <label>מקסימום קבצים</label>
+        <input id="b-max" type="number" value="100" min="1" max="5000">
+      </div>
+      <div class="checkbox-row">
+        <input type="checkbox" id="b-ocr" checked>
+        <label for="b-ocr">הפעל OCR אוטומטית</label>
+      </div>
+      <div class="checkbox-row">
+        <input type="checkbox" id="b-skip" checked>
+        <label for="b-skip">דלג על קבצים קיימים</label>
+      </div>
+      <button class="btn btn-primary" style="width:100%;margin-top:6px" id="btn-bulk-start" onclick="startBulk()">▶ התחל הורדה</button>
+      <button class="btn btn-danger hidden" style="width:100%;margin-top:6px" id="btn-bulk-stop" onclick="stopBulk()">■ עצור</button>
+    </div>
+
+    <div class="bulk-progress">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <span class="section-title">התקדמות</span>
+        <span id="b-pct" style="color:var(--dim);font-size:12px">—</span>
+      </div>
+      <div class="progress-bar-wrap"><div class="progress-bar-fill" id="b-bar"></div></div>
+      <div class="stats-row">
+        <div class="stat-box"><div class="stat-num" id="b-dl" style="color:var(--green)">0</div><div class="stat-label">הורדו</div></div>
+        <div class="stat-box"><div class="stat-num" id="b-err" style="color:var(--amber)">0</div><div class="stat-label">שגיאות</div></div>
+        <div class="stat-box"><div class="stat-num" id="b-rem" style="color:var(--muted)">—</div><div class="stat-label">נותרו</div></div>
+      </div>
+      <div class="log-box" id="b-log"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== LIBRARY TAB ===== -->
+<div class="panel" id="panel-library">
+  <div class="library-bar">
+    <input id="lib-search" type="text" placeholder="חיפוש בטקסט מלא בתוך PDF..." oninput="debounceLibSearch()">
+    <span class="library-stats" id="lib-stats">טוען...</span>
+  </div>
+
+  <div class="filter-chips" id="lib-chips"></div>
+
+  <table class="results-table">
+    <thead>
+      <tr>
+        <th>קובץ</th>
+        <th>ועדה</th>
+        <th>שמאי</th>
+        <th>תאריך</th>
+        <th>OCR</th>
+        <th>פעולות</th>
+      </tr>
+    </thead>
+    <tbody id="lib-results"></tbody>
+  </table>
+
+  <div id="claude-panel" class="claude-panel hidden">
+    <h4>✦ Claude — <span id="claude-filename"></span></h4>
+    <div class="prompt-chips">
+      <div class="prompt-chip" onclick="sendPrompt('סכם את ההכרעה בצורה תמציתית')">סכם את ההכרעה</div>
+      <div class="prompt-chip" onclick="sendPrompt('מה שווי הנכס שנקבע בהכרעה?')">מה שווי הנכס?</div>
+      <div class="prompt-chip" onclick="sendPrompt('מהן נקודות המפתח של ההכרעה?')">נקודות מפתח</div>
+      <div class="prompt-chip" onclick="sendPrompt('כמה היטל השבחה נקבע ומה הנימוקים?')">גובה ההיטל</div>
+    </div>
+    <div class="prompt-input-row">
+      <input id="claude-input" type="text" placeholder="שאל שאלה על ההכרעה...">
+      <button class="btn btn-purple" onclick="sendCustomPrompt()">שלח</button>
+    </div>
+    <div class="claude-response" id="claude-response"></div>
+  </div>
+</div>
+
+<script src="/app.js"></script>
+</body>
+</html>
