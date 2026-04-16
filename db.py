@@ -46,11 +46,7 @@ def init_db():
             ocr_status TEXT DEFAULT 'none'
         );
 
-        CREATE VIRTUAL TABLE IF NOT EXISTS decision_text USING fts5(
-            text,
-            content=decisions,
-            content_rowid=id
-        );
+        CREATE VIRTUAL TABLE IF NOT EXISTS decision_text USING fts5(text);
     """)
     if DB_PATH != ":memory:":
         conn.close()
